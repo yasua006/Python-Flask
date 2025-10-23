@@ -11,4 +11,10 @@ python3 init_db.py
 python3 app.py
 ```
 
+POST og DELETE:
+```
+curl -X POST localhost:5000
+curl -X DELETE localhost:5000
+```
+
 - Det har feil på laging, man kan ikke redigere på posts, og administrator tilgang finnes ikke
