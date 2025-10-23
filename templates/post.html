@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>{{ post[1] }}</h1>
+  <article>
+    {{ post[2] | safe }}
+  </article>
+  <a href="{{ url_for('index') }}" aria-label="Tilbake til forsiden">← Tilbake til forsiden</a>
+{% endblock %}
