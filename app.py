@@ -1,11 +1,19 @@
 # få sqlite3 fra biblioteket
 import sqlite3
 # få flask fra venv biblioteket
-from flask import Flask, render_template, abort
+from flask import Flask, render_template, abort, request
 
 app = Flask(__name__)
 # database navn
 DB_PATH = "blog.db"
+
+# funksjon for å håndtere 0 posts
+def create_db():
+    with sqlite3.connect(DB_PATH) as con:
+        con.execute(
+            "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL)"
+        )
+        con.commit()
 
 # funksjon for å få alle posts
 def fetch_all_posts():
@@ -43,36 +51,27 @@ def delete_post_by_id(post_id: int):
     # koble til databasen
     with sqlite3.connect(DB_PATH) as con:
         con.row_factory = sqlite3.Row
-        row = con.execute(
+        con.execute(
             "DELETE FROM posts WHERE id = ?",
             (post_id,)
-        ).fetchone()
-        if row is None:
-            # få ingenting
-            return None
-"CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL); INSERT INTO posts (title, content) VALUES ('Ny Post', '<p>Ny</p>')"
-
-
-# funksjon for å håndtere laging av post id
-def add():
-    with sqlite3.connect(DB_PATH) as con:
-        # koble til databasen
-        con.row_factory = sqlite3.Row
-        con.execute(
-            "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL)",
-            ()
-        )
-        con.execute(
-            "INSERT INTO posts (title, content) VALUES ('Ny Post', '<p>Ny</p>')",
-            ()
         )
         con.commit()
-        row = con.execute(
-            "SELECT id, title, content FROM posts WHERE id = ?",
-            ()
-        ).fetchone()
-        # få posten
-        return [row["id"], row["title"], row["content"]]
+        return True
+
+# funksjon for å håndtere laging av post id
+def add_post(title: str, content: str):
+    # koble til databasen
+    with sqlite3.connect(DB_PATH) as con:
+        con.row_factory = sqlite3.Row
+        # lag posten
+        con.execute(
+            "INSERT INTO posts (title, content) VALUES (?, ?)",
+            (title, content)
+        )
+        con.commit()
+        
+        last_id = con.execute("SELECT last_insert_rowid()").fetchone()
+        return fetch_post_by_id(last_id[0])
 
 # håndtere post siden
 @app.route("/post/<int:post_id>")
@@ -96,11 +95,13 @@ def del_post_detail(post_id: int) -> str:
 
 # håndtere add post siden
 @app.post("/add/post")
-def add_post_detail() -> str:
-    # lag post
-    add_post = add()
+def add_post_detail():
+    title = request.form.get("Title", "Ny post")
+    content = request.form.get("Content", "<p>Ny</p>")
 
-    return render_template("add_post.html", add_post=add_post)
+    add_post_result = add_post(title, content)
+
+    return render_template("add_post.html", add_post=add_post_result)
 
 # håndtere 404 siden
 @app.errorhandler(404)
@@ -114,4 +115,5 @@ def bad_gateway(e):
 
 # kjør appen i debug mode
 if __name__ == "__main__":
+    create_db()
     app.run(debug=True)
