@@ -24,7 +24,7 @@ def fetch_post_by_id(post_id: int):
     with sqlite3.connect(DB_PATH) as con:
         con.row_factory = sqlite3.Row
         row = con.execute(
-            "SELECT id, title, content FROM posts WHERE id = ?;",
+            "SELECT id, title, content FROM posts WHERE id = ?",
             (post_id,)
         ).fetchone()
         if row is None:
@@ -33,7 +33,7 @@ def fetch_post_by_id(post_id: int):
         return [row["id"], row["title"], row["content"]]
 
 # håndtere hjem siden
-@app.route("/")
+@app.get("/")
 def index():
     posts = fetch_all_posts()
     return render_template("index.html", posts=posts)
@@ -50,19 +50,29 @@ def delete_post_by_id(post_id: int):
         if row is None:
             # få ingenting
             return None
-        
+"CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL); INSERT INTO posts (title, content) VALUES ('Ny Post', '<p>Ny</p>')"
+
+
 # funksjon for å håndtere laging av post id
 def add():
     with sqlite3.connect(DB_PATH) as con:
         # koble til databasen
         con.row_factory = sqlite3.Row
+        con.execute(
+            "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL)",
+            ()
+        )
+        con.execute(
+            "INSERT INTO posts (title, content) VALUES ('Ny Post', '<p>Ny</p>')",
+            ()
+        )
+        con.commit()
         row = con.execute(
-            "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL); INSERT INTO posts (title, content) VALUES ('Ny Post', '<p>Ny</p>')",
+            "SELECT id, title, content FROM posts WHERE id = ?",
             ()
         ).fetchone()
-        if row is None:
-            # få tittel og content
-            return [row["title"], row["content"]]
+        # få posten
+        return [row["id"], row["title"], row["content"]]
 
 # håndtere post siden
 @app.route("/post/<int:post_id>")
@@ -77,7 +87,7 @@ def post_detail(post_id: int) -> str:
     return render_template("post.html", post=post)
 
 # håndtere delete post siden
-@app.route("/del/post/<int:post_id>")
+@app.delete("/del/post/<int:post_id>")
 def del_post_detail(post_id: int) -> str:
     # slett post
     del_post = delete_post_by_id(post_id)
@@ -85,7 +95,7 @@ def del_post_detail(post_id: int) -> str:
     return render_template("del_post.html", del_post=del_post)
 
 # håndtere add post siden
-@app.route("/add/post")
+@app.post("/add/post")
 def add_post_detail() -> str:
     # lag post
     add_post = add()
@@ -96,6 +106,11 @@ def add_post_detail() -> str:
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template("404.html"), 404
+
+# håndtere 502 siden
+@app.errorhandler(502)
+def bad_gateway(e):
+    return render_template("502.html"), 502
 
 # kjør appen i debug mode
 if __name__ == "__main__":
